@@ -21,21 +21,33 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET'])
 def home():
-    return (
-        "<h1>Music Popularity Prediction API</h1>"
-        "<p>Use <code>POST /predict</code> with JSON body containing the audio features, artist name, and track genre.</p>"  
-        "<pre>{\n  \"danceability\": 0.8,\n  \"energy\": 0.7,\n  ... ,\n  \"track_genre\": \"pop\",\n  \"artists\": \"Dua Lipa\"\n}</pre>"
-    )
+    return """
+<h1>Music Popularity Prediction API</h1>
+<p>Use <code>POST /predict</code> with JSON body containing the audio features, artist name, and track genre.</p>
+<pre>{
+  "danceability": 0.8,
+  "energy": 0.7,
+  "loudness": -5.0,
+  "speechiness": 0.04,
+  "acousticness": 0.2,
+  "instrumentalness": 0.0,
+  "valence": 0.6,
+  "tempo": 120.0,
+  "duration_ms": 210000,
+  "track_genre": "pop",
+  "artists": "Dua Lipa"
+}</pre>
+"""
 
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
     if request.method == 'GET':
         host = request.host
-        return (
-            f"<h3>Send a POST request with JSON to this endpoint.</h3>"
-            f"<p>Example:</p>"
-            f"<pre>curl -X POST http://{host}/predict -H 'Content-Type: application/json' -d '{{"danceability":0.8,...,"artists":"Dua Lipa"}}'</pre>"
-        )
+        return f"""
+<h3>Send a POST request with JSON to this endpoint.</h3>
+<p>Example:</p>
+<pre>curl -X POST http://{host}/predict -H 'Content-Type: application/json' -d '{{"danceability":0.8,...,"artists":"Dua Lipa"}}'</pre>
+"""
 
     try:
         # Recibir datos del JSON
@@ -45,12 +57,9 @@ def predict():
         df = pd.DataFrame([input_data])
 
         # --- Preprocesamiento igual que en entrenamiento ---
-        # Mapear artist_popularity si envían el nombre del artista
         if 'artists' in df.columns:
             df['artist_popularity'] = df['artists'].map(artist_popularity_dict)
             df['artist_popularity'].fillna(mean_popularity, inplace=True)
-
-        # Codificar track_genre
         if 'track_genre' in df.columns:
             df['track_genre'] = encoder.transform(df[['track_genre']])
             df['track_genre'] = df['track_genre'].astype(float)
@@ -60,8 +69,8 @@ def predict():
 
         # Predecir
         prediction = model.predict(df)[0]
-
         return jsonify({'predicted_popularity': float(prediction)})
+
     except Exception as e:
         return jsonify({'error': str(e)})
 
