@@ -2,7 +2,7 @@ import pickle
 from flask import Flask, request, jsonify
 
 # Carga tu modelo previamente entrenado
-with open('modelo_entrenado.pkl', 'rb') as model_file:
+with open('model_proyecto1.pkl', 'rb') as model_file:
     modelo = pickle.load(model_file)
 
 # Inicializa la aplicación Flask
