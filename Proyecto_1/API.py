@@ -1,28 +1,60 @@
-import pickle
+#!/usr/bin/python
+
 from flask import Flask, request, jsonify
+import joblib
+import pandas as pd
+import numpy as np
+import xgboost as xgb
+import os
 
-# Carga tu modelo previamente entrenado
-with open('model_proyecto1.pkl', 'rb') as model_file:
-    modelo = pickle.load(model_file)
+# Cargar el modelo y los objetos necesarios
+model = joblib.load('model_proyecto1.pkl')
+artist_popularity_dict = joblib.load('artist_popularity_dict.pkl')
+mean_popularity = joblib.load('mean_popularity.pkl')
+encoder = joblib.load('track_genre_encoder.pkl')
 
-# Inicializa la aplicación Flask
+# Definir las features esperadas
+features = [
+    'danceability', 'energy', 'loudness', 'speechiness', 'acousticness',
+    'instrumentalness', 'valence', 'tempo', 'duration_ms', 'artist_popularity', 'track_genre'
+]
+
 app = Flask(__name__)
 
-# Definir la ruta para hacer predicciones
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Obtén los datos enviados en el cuerpo de la solicitud
-    datos = request.get_json()
+    try:
+        # Recibir datos del JSON
+        input_data = request.get_json()
 
-    # Aquí puedes adaptar el código para procesar los datos según el formato esperado por tu modelo
-    entrada = datos['entrada']  # Suponiendo que la entrada esté en 'entrada'
+        # Convertir a DataFrame
+        df = pd.DataFrame([input_data])
+
+        # --- Preprocesamiento igual que en entrenamiento ---
+        
+        # Mapear artist_popularity si envían el nombre del artista
+        if 'artists' in df.columns:
+            df['artist_popularity'] = df['artists'].map(artist_popularity_dict)
+            df['artist_popularity'].fillna(mean_popularity, inplace=True)
+
+        # Codificar track_genre
+        if 'track_genre' in df.columns:
+            df['track_genre'] = encoder.transform(df[['track_genre']])
+            df['track_genre'] = df['track_genre'].astype(float)
+
+        # Asegurar que están todas las columnas que el modelo espera
+        df = df[features]
+
+        # Predecir
+        prediction = model.predict(df)[0]
+
+        return jsonify({
+            'predicted_popularity': float(prediction)
+        })
     
-    # Realiza la predicción
-    prediccion = modelo.predict([entrada])
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
-    # Retorna la predicción como JSON
-    return jsonify({'prediccion': prediccion.tolist()})
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
 
-# Inicia el servidor
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
